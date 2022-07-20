@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Driver;
+namespace Mingle\CacheHub\Driver;
 
-use Quhao\CacheHub\Exception\Exception;
-use Quhao\CacheHub\Serializer\SerializerInterface;
+use Mingle\CacheHub\Exception\Exception;
+use Mingle\CacheHub\Serializer\SerializerInterface;
 
 abstract class BaseDriver
 {

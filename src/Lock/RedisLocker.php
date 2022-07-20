@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Lock;
+namespace Mingle\CacheHub\Lock;
 
 class RedisLocker extends Locker
 {
@@ -27,9 +27,9 @@ class RedisLocker extends Locker
         return (bool)$this->redis->del($key);
     }
 
-    public function getLockValue($key)
+    public function isLocked($key) : bool
     {
-        return $this->redis->get($key);
+        return !empty($this->redis->get($key));
     }
 
 

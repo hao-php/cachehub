@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Serializer;
+namespace Mingle\CacheHub\Serializer;
 
 class Json implements SerializerInterface
 {

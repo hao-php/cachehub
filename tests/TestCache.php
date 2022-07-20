@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 
-use Quhao\CacheHub\CacheHandler;
+use Mingle\CacheHub\CacheHandler;
 
 class TestCache extends CacheHandler
 {
@@ -12,6 +12,7 @@ class TestCache extends CacheHandler
     public $nullExpire = 10;
     public $nullValue = '';
     public $valueFunc;
+    public $wrapFunc;
 
     public function build($params)
     {
@@ -19,6 +20,14 @@ class TestCache extends CacheHandler
             return '';
         }
         return call_user_func($this->valueFunc, $params);
+    }
+
+    public function wrapData($data)
+    {
+        if (empty($this->wrapFunc)) {
+            return $data;
+        }
+        return call_user_func($this->wrapFunc, $data);
     }
 
 }

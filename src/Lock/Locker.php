@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Lock;
+namespace Mingle\CacheHub\Lock;
 
 abstract class Locker {
 
@@ -23,7 +23,7 @@ abstract class Locker {
      * @param string $key 键
      * @return bool
      */
-    public abstract function getLockValue(string $key);
+    public abstract function isLocked(string $key) : bool;
 
     public function getLockKey($prefix, $key, $keyParams)
     {

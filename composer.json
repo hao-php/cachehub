@@ -1,8 +1,8 @@
 {
-    "name": "quhao/cache-hub",
+    "name": "mingle/cachehub",
     "autoload": {
         "psr-4": {
-            "Quhao\\CacheHub\\": "src/"
+            "Mingle\\CacheHub\\": "src/"
         }
     },
     "require-dev": {

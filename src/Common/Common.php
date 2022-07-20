@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Common;
+namespace Mingle\CacheHub\Common;
 
 class Common
 {

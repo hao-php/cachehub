@@ -24,7 +24,7 @@ class CacheHubTest extends TestCase
         $cache->key = '';
         try {
             $cache->get();
-        } catch (\Quhao\CacheHub\Exception\Exception $e) {
+        } catch (\Mingle\CacheHub\Exception\Exception $e) {
             $this->assertEquals('key is empty', $e->getMessage());
         }
     }
@@ -87,9 +87,13 @@ class CacheHubTest extends TestCase
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
         $this->assertEquals('cachehub_redis', $from);
-
         $this->assertTrue(($ttl <= 60 && $ttl > 0));
         $this->assertEquals('test', $data);
+
+        $cache->get('', true);
+        $from = $cache->getDataFrom();
+        $cache->clearDataFrom();
+        $this->assertEquals('build', $from);
 
         $data = $cache->get(1);
         $key = 'unit_test:test_string:1';
@@ -98,8 +102,77 @@ class CacheHubTest extends TestCase
         $ttl = $redis->ttl($key);
         $this->assertTrue(($ttl <= 60 && $ttl > 0));
         $this->assertEquals('test_1', $data);
+
+        $cache->wrapFunc = function ($data) {
+            return $data . '_wrap';
+        };
+        $data = $cache->get();
+        $this->assertEquals('test_wrap', $data);
+
+        $data = $cache->getFromCache();
+        $this->assertEquals('test_wrap', $data);
+
+        $data = $cache->get('', true);
+        $this->assertEquals('test_wrap', $data);
+
+        $data = $cache->get(1);
+        $this->assertEquals('test_1_wrap', $data);
+
+        $data = $cache->getFromCache(1);
+        $this->assertEquals('test_1_wrap', $data);
+
+        $data = $cache->get(1, true);
+        $this->assertEquals('test_1_wrap', $data);
     }
 
+
+    public function testUpdate()
+    {
+        $redis = Common::getRedis();
+        $redis->flushDB();
+
+        $registerCaches = [
+            'test' => new TestCache(),
+        ];
+        $cacheHub = Common::getCacheHub($registerCaches);
+        $cache = $cacheHub->getCache('test');
+        $cache->expire = 300;
+        $cache->key = 'test_update';
+        $cache->valueFunc = function ($params) {
+            return 'test_update';
+        };
+        $key = 'unit_test:test_update';
+        $redisValue = $redis->get($key);
+        $this->assertTrue(empty($redisValue));
+        $ret = $cache->update();
+        $this->assertTrue($ret);
+        $redisValue = $redis->get($key);
+        $this->assertEquals('test_update', $redisValue);
+    }
+
+    public function testSet()
+    {
+        $redis = Common::getRedis();
+        $redis->flushDB();
+
+        $registerCaches = [
+            'test' => new TestCache(),
+        ];
+        $cacheHub = Common::getCacheHub($registerCaches);
+        $cache = $cacheHub->getCache('test');
+        $cache->expire = 300;
+        $cache->key = 'test_set';
+        $cache->valueFunc = function ($params) {
+            return 'test_set';
+        };
+        $key = 'unit_test:test_set';
+        $ret = $cache->set('', 'test_set111');
+        $this->assertTrue($ret);
+        $data = $cache->get();
+        $this->assertEquals('test_set111', $data);
+        $ttl = $redis->ttl($key);
+        $this->assertTrue(($ttl <= 300 && $ttl > 0));
+    }
 
     public function testGetArray()
     {
@@ -309,6 +382,25 @@ class CacheHubTest extends TestCase
         $redis = Common::getRedis();
         $redis->flushDB();
 
+        $cache = new TestCache();
+        $cache->buildLock = true;
+        $cache->buildWaitMod = 1;
+        $cache->buildWaitTime = 10;
+        $cache->buildWaitCount = 5;
+        $cache->valueFunc = function ($params) {
+            return 'test_lock';
+        };
+        $registerCaches = [
+            'test' => $cache,
+        ];
+        $cacheHub = Common::getCacheHub($registerCaches);
+        $cache = $cacheHub->getCache('test');
+        $cache->get();
+        $lockValue = $redis->get("unit_test:test_lock");
+        $this->assertTrue(empty($lockValue));
+
+
+        $redis->flushDB();
         \Swoole\Runtime::enableCoroutine();
         $fromArr = [];
         run(function () use (&$fromArr) {
@@ -323,12 +415,16 @@ class CacheHubTest extends TestCase
                     $cache->valueFunc = function ($params) {
                         return 'test_lock';
                     };
+                    $cache->wrapFunc = function ($data) {
+                        return $data . '_wrap';
+                    };
                     $registerCaches = [
                         'test' => $cache,
                     ];
                     $cacheHub = Common::getCacheHub($registerCaches);
                     $cache = $cacheHub->getCache('test');
-                    $cache->get();
+                    $data = $cache->get();
+                    $this->assertEquals('test_lock_wrap', $data);
                     // usleep(1);
                     $from = $cache->getDataFrom();
                     $fromArr[] = $from;
@@ -464,7 +560,7 @@ class CacheHubTest extends TestCase
                         $from = $cache->getDataFrom();
                         $fromArr[] = $from;
                         $cache->clearDataFrom();
-                    } catch (\Quhao\CacheHub\Exception\Exception $e) {
+                    } catch (\Mingle\CacheHub\Exception\Exception $e) {
                         if ($e->getMessage() == 'build data timeout') {
                             $isTimeout++;
                         }

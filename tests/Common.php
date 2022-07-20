@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use Quhao\CacheHub\CacheHub;
-use Quhao\CacheHub\Lock\RedisLocker;
+use Mingle\CacheHub\CacheHub;
+use Mingle\CacheHub\Lock\RedisLocker;
 
 class Common
 {

@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub\Driver;
+namespace Mingle\CacheHub\Driver;
 
-use Quhao\CacheHub\Common\Common;
-use Quhao\CacheHub\Exception\Exception;
+use Mingle\CacheHub\Common\Common;
+use Mingle\CacheHub\Exception\Exception;
 
 class Redis extends BaseDriver
 {

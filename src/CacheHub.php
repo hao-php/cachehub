@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-namespace Quhao\CacheHub;
+namespace Mingle\CacheHub;
 
-use Quhao\CacheHub\Driver\BaseDriver;
-use Quhao\CacheHub\Driver\Redis;
-use Quhao\CacheHub\Exception\Exception;
-use Quhao\CacheHub\Lock\Locker;
-use Quhao\CacheHub\Serializer\Json;
-use Quhao\CacheHub\Serializer\SerializerInterface;
+use Mingle\CacheHub\Driver\BaseDriver;
+use Mingle\CacheHub\Driver\Redis;
+use Mingle\CacheHub\Exception\Exception;
+use Mingle\CacheHub\Lock\Locker;
+use Mingle\CacheHub\Serializer\Json;
+use Mingle\CacheHub\Serializer\SerializerInterface;
 
 class CacheHub
 {
@@ -33,6 +33,30 @@ class CacheHub
 
     /** 缓存前缀 */
     public $prefix = 'cachehub:';
+
+
+    public function __construct($registerCaches)
+    {
+        foreach ($registerCaches as $name => $cache) {
+            if (!$cache instanceof CacheHandler) {
+                throw new Exception("cache[{$name}] must be an instance of " . CacheHandler::class);
+            }
+            if (empty($cache->key)) {
+                throw new Exception("cache[{$name}] key is empty");
+            }
+            if (isset($this->keys[$cache->key])) {
+                throw new Exception("cache[{$name}] key[$cache->key] is repeated");
+            }
+            $this->keys[$cache->key] = 1;
+        }
+        $this->registerCaches = $registerCaches;
+        $this->serializers = [
+            'cachehub_json' => new Json(),
+        ];
+        $this->drivers = [
+            'cachehub_redis' => new Redis(),
+        ];
+    }
 
     /**
      * @return array
@@ -111,32 +135,31 @@ class CacheHub
         $this->locker = $locker;
     }
 
-    public function __construct($registerCaches)
-    {
-        foreach ($registerCaches as $name => $cache) {
-            if (!$cache instanceof CacheHandler) {
-                throw new Exception("cache[{$name}] must be an instance of " . CacheHandler::class);
-            }
-            if (empty($cache->key)) {
-                throw new Exception("cache[{$name}] key is empty");
-            }
-            if (isset($this->keys[$cache->key])) {
-                throw new Exception("cache[{$name}] key[$cache->key] is repeated");
-            }
-            $this->keys[$cache->key] = 1;
-        }
-        $this->registerCaches = $registerCaches;
-        $this->serializers = [
-            'cachehub_json' => new Json(),
-        ];
-        $this->drivers = [
-            'cachehub_redis' => new Redis(),
-        ];
-    }
-
-    public function getDriver($name) : BaseDriver
+    public function getDriver($name): BaseDriver
     {
         return $this->drivers[$name];
+    }
+
+    protected function setCacheDriver(CacheHandler &$cacheHandler)
+    {
+        if (empty($cacheHandler->driverName)) {
+            throw new Exception("driverName is empty");
+        }
+        if (!isset($this->getDrivers()[$cacheHandler->driverName])) {
+            throw new Exception("driver[{$cacheHandler->driverName}] is not exists");
+        }
+        $cacheHandler->setDriver($this->getDrivers()[$cacheHandler->driverName]);
+    }
+
+    protected function setCacheSerializer(CacheHandler &$cacheHandler)
+    {
+        if (empty($cacheHandler->serializerName)) {
+            throw new Exception("serializerName is empty");
+        }
+        if (!isset($this->getSerializers()[$cacheHandler->serializerName])) {
+            throw new Exception("serializer[{$cacheHandler->serializerName}] is not exists");
+        }
+        $cacheHandler->setSerializer($this->getSerializers()[$cacheHandler->serializerName]);
     }
 
     public function getCache(string $cacheName): CacheHandler
@@ -157,28 +180,6 @@ class CacheHub
             $obj->setInit();
         }
         return $obj;
-    }
-
-    public function setCacheDriver(CacheHandler &$cacheHandler)
-    {
-        if (empty($cacheHandler->driverName)) {
-            throw new Exception("driverName is empty");
-        }
-        if (!isset($this->getDrivers()[$cacheHandler->driverName])) {
-            throw new Exception("driver[{$cacheHandler->driverName}] is not exists");
-        }
-        $cacheHandler->setDriver($this->getDrivers()[$cacheHandler->driverName]);
-    }
-
-    public function setCacheSerializer(CacheHandler &$cacheHandler)
-    {
-        if (empty($cacheHandler->serializerName)) {
-            throw new Exception("serializerName is empty");
-        }
-        if (!isset($this->getSerializers()[$cacheHandler->serializerName])) {
-            throw new Exception("serializer[{$cacheHandler->serializerName}] is not exists");
-        }
-        $cacheHandler->setSerializer($this->getSerializers()[$cacheHandler->serializerName]);
     }
 
 

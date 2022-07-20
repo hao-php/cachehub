@@ -1,8 +1,8 @@
 <?php
 
-use Quhao\CacheHub\CacheHandler;
-use Quhao\CacheHub\CacheHub;
-use Quhao\CacheHub\Lock\RedisLocker;
+use Mingle\CacheHub\CacheHandler;
+use Mingle\CacheHub\CacheHub;
+use Mingle\CacheHub\Lock\RedisLocker;
 
 require __DIR__ . '/autoload.php';
 

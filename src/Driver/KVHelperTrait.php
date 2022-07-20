@@ -1,6 +1,6 @@
 <?php
 
-namespace Quhao\CacheHub\Driver;
+namespace Mingle\CacheHub\Driver;
 
 trait KVHelperTrait
 {
