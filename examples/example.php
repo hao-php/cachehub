@@ -16,7 +16,7 @@ class ExTest extends CacheHandler {
     public $serializerName = 'cachehub_json';
 
     /**
-     * 数据生成
+     * 生成数据
      */
     protected function build($params)
     {
@@ -24,7 +24,7 @@ class ExTest extends CacheHandler {
     }
 
     /**
-     * 数据包装
+     * 包装数据
      */
     protected function wrapData($data)
     {
