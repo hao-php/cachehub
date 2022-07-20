@@ -51,7 +51,7 @@ abstract class CacheHandler
     /**
      * @var Locker
      */
-    public $locker;
+    protected $locker;
 
     /** @var BaseDriver */
     protected $driver;

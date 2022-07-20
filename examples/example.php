@@ -42,7 +42,7 @@ class AppCacheHub
      */
     public static function getCacheHub() : CacheHub
     {
-        $redis = new RedisLoker();
+        $redis = new Redis();
         $redis->connect('redis');
         $redis->select(3);
 
@@ -61,8 +61,10 @@ class AppCacheHub
         $cacheHub->getDriver('cachehub_redis')->setHandler($redis);
 
         // 注入redis锁
-        $locker = new RedisLoker($redis);
+        $locker = new RedisLocker($redis);
         $cacheHub->setLocker($locker);
+
+        return $cacheHub;
     }
 
     public static function getRegisterCaches()
@@ -78,7 +80,9 @@ class AppCacheHub
         $cache = $cacheHub->getCache(AppCacheHub::EX_TEXT);
 
         // 获取数据
-        $cache->get();
+        $data = $cache->get();
+        $from = $cache->getDataFrom();
+        var_dump($data, $from);
 
         // 强制刷新, 获取数据
         $cache->get('', true);
@@ -88,6 +92,11 @@ class AppCacheHub
 
         // 设置数据
         $cache->set('', 'test_data');
+
+        // 调用原生驱动的方法
+        $cache->lPush('test', 1);
     }
 
 }
+
+AppCacheHub::test();
