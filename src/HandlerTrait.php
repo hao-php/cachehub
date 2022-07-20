@@ -14,6 +14,11 @@ trait HandlerTrait
         $this->driver = $driver;
     }
 
+    public function getSerializer(): getSerializer
+    {
+        return $this->serializer;
+    }
+
     public function setSerializer(SerializerInterface $serializer)
     {
         $this->serializer = $serializer;
@@ -239,6 +244,11 @@ trait HandlerTrait
     {
         $key = $this->getDriverKey($keyParams);
         return (bool)$this->driver->set($key, $data, $this->getExpire());
+    }
+
+    public function __call($name, $arguments)
+    {
+        return call_user_func_array([$this->driver, $name], $arguments);
     }
 
 }

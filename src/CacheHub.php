@@ -6,7 +6,7 @@ namespace Mingle\CacheHub;
 use Mingle\CacheHub\Driver\BaseDriver;
 use Mingle\CacheHub\Driver\Redis;
 use Mingle\CacheHub\Exception\Exception;
-use Mingle\CacheHub\Lock\Locker;
+use Mingle\CacheHub\Locker\Locker;
 use Mingle\CacheHub\Serializer\Json;
 use Mingle\CacheHub\Serializer\SerializerInterface;
 
@@ -169,9 +169,6 @@ class CacheHub
         }
         /** @var $obj CacheHandler */
         $obj = $this->registerCaches[$cacheName];
-        // if (!$obj instanceof CacheHandler) {
-        //     throw new Exception("cache[{$cacheName}] must be be an instance of " . CacheHandler::class);
-        // }
         if (!$obj->isInit()) {
             $this->setCacheDriver($obj);
             $this->setCacheSerializer($obj);

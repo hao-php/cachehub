@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Lock;
+namespace Mingle\CacheHub\Locker;
 
 abstract class Locker {
 

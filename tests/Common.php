@@ -2,11 +2,10 @@
 declare(strict_types=1);
 
 use Mingle\CacheHub\CacheHub;
-use Mingle\CacheHub\Lock\RedisLocker;
+use Mingle\CacheHub\Locker\RedisLocker;
 
 class Common
 {
-
 
     /**
      * @return Redis

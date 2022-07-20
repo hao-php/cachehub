@@ -13,9 +13,6 @@ abstract class BaseDriver
     /** @var SerializerInterface */
     protected $serializer;
 
-    /** 对于非标量数据是否要序列化 */
-    // abstract public function needSerialize(): bool;
-
     abstract public function get($key);
 
     abstract public function set($key, $value, $expire = null);
@@ -53,6 +50,11 @@ abstract class BaseDriver
     public function setSerializer(SerializerInterface $serializer)
     {
         $this->serializer = $serializer;
+    }
+
+    public function __call($name, $arguments)
+    {
+        return call_user_func_array([$this->handler, $name], $arguments);
     }
 
 

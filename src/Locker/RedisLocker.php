@@ -1,13 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Lock;
+namespace Mingle\CacheHub\Locker;
 
 class RedisLocker extends Locker
 {
 
     /**
-     *
      * @var \Redis
      */
     private $redis;
@@ -27,7 +26,7 @@ class RedisLocker extends Locker
         return (bool)$this->redis->del($key);
     }
 
-    public function isLocked($key) : bool
+    public function isLocked($key): bool
     {
         return !empty($this->redis->get($key));
     }

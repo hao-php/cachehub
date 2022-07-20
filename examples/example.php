@@ -2,7 +2,7 @@
 
 use Mingle\CacheHub\CacheHandler;
 use Mingle\CacheHub\CacheHub;
-use Mingle\CacheHub\Lock\RedisLocker;
+use Mingle\CacheHub\Locker\RedisLocker;
 
 require __DIR__ . '/autoload.php';
 
@@ -12,31 +12,82 @@ class ExTest extends CacheHandler {
     public $key = "ex_test";
     public $expire = 60;
     public $buildLock = true;
+    public $driverName = 'cachehub_redis';
+    public $serializerName = 'cachehub_json';
 
+    /**
+     * 数据生成
+     */
     protected function build($params)
     {
         return 'ex_data';
     }
+
+    /**
+     * 数据包装
+     */
+    protected function wrapData($data)
+    {
+        return $data;
+    }
 }
 
+class AppCacheHub
+{
+    /** 测试用 */
+    const EX_TEXT = 'ex_test';
 
-$redis = new Redis();
-$redis->connect('redis');
-$redis->select(3);
+    /**
+     * 获取cacheHub对象, 自行处理单例, 初始化
+     */
+    public static function getCacheHub() : CacheHub
+    {
+        $redis = new RedisLoker();
+        $redis->connect('redis');
+        $redis->select(3);
 
+        $cacheHub = new CacheHub(self::getRegisterCaches());
 
-$registerCaches = [
-    'ex_test' => new ExTest,
-];
-$cacheHub = new CacheHub($registerCaches);
-$cacheHub->setPrefix('ex:');
-$cacheHub->getDriver('cachehub_redis')->setHandler($redis);
+        // 添加缓存驱动
+        // $cacheHub->addDrivers();
 
-$locker = new RedisLocker($redis);
-$cacheHub->setLocker($locker);
+        // 添加序列化器
+        // $cacheHub->addSerializer();
 
-$cache = $cacheHub->getCache('ex_test');
-$cache = $cacheHub->getCache('ex_test');
-$data = $cache->get();
-var_Dump($data);
-var_Dump($cache->getDataFrom());
+        // 设置key的前缀
+        $cacheHub->setPrefix('ex:');
+
+        // 把redis缓存注入到内置的驱动上
+        $cacheHub->getDriver('cachehub_redis')->setHandler($redis);
+
+        // 注入redis锁
+        $locker = new RedisLoker($redis);
+        $cacheHub->setLocker($locker);
+    }
+
+    public static function getRegisterCaches()
+    {
+        return [
+            self::EX_TEXT => new ExTest,
+        ];
+    }
+
+    public static function test()
+    {
+        $cacheHub = self::getCacheHub();
+        $cache = $cacheHub->getCache(AppCacheHub::EX_TEXT);
+
+        // 获取数据
+        $cache->get();
+
+        // 强制刷新, 获取数据
+        $cache->get('', true);
+
+        // 更新数据
+        $cache->update('');
+
+        // 设置数据
+        $cache->set('', 'test_data');
+    }
+
+}

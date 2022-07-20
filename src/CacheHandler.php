@@ -3,10 +3,8 @@ declare(strict_types=1);
 
 namespace Mingle\CacheHub;
 
-use Mingle\CacheHub\Common\Common;
 use Mingle\CacheHub\Driver\BaseDriver;
-use Mingle\CacheHub\Exception\Exception;
-use Mingle\CacheHub\Lock\Locker;
+use Mingle\CacheHub\Locker\Locker;
 use Mingle\CacheHub\Serializer\SerializerInterface;
 
 abstract class CacheHandler
