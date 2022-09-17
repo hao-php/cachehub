@@ -19,8 +19,11 @@ class CacheHub
     /** 数据序列化器  */
     protected $serializers = [];
 
-    /** 注册的缓存 */
+    /** 注册的缓存类路径 */
     protected $registerCaches = [];
+
+    /** 注册的缓存类对象 */
+    protected $registerCacheObjs = [];
 
     /** @var Locker 用于构建缓存时的锁 */
     protected $locker;
@@ -37,18 +40,18 @@ class CacheHub
 
     public function __construct($registerCaches)
     {
-        foreach ($registerCaches as $name => $cache) {
-            if (!$cache instanceof CacheHandler) {
-                throw new Exception("cache[{$name}] must be an instance of " . CacheHandler::class);
-            }
-            if (empty($cache->key)) {
-                throw new Exception("cache[{$name}] key is empty");
-            }
-            if (isset($this->keys[$cache->key])) {
-                throw new Exception("cache[{$name}] key[$cache->key] is repeated");
-            }
-            $this->keys[$cache->key] = 1;
-        }
+        // foreach ($registerCaches as $name => $cacheClass) {
+        //     if (!$cache instanceof CacheHandler) {
+        //         throw new Exception("cache[{$name}] must be an instance of " . CacheHandler::class);
+        //     }
+        //     if (empty($cache->key)) {
+        //         throw new Exception("cache[{$name}] key is empty");
+        //     }
+        //     if (isset($this->keys[$cache->key])) {
+        //         throw new Exception("cache[{$name}] key[$cache->key] is repeated");
+        //     }
+        //     $this->keys[$cache->key] = 1;
+        // }
         $this->registerCaches = $registerCaches;
         $this->serializers = [
             'cachehub_json' => new Json(),
@@ -162,20 +165,21 @@ class CacheHub
         $cacheHandler->setSerializer($this->getSerializers()[$cacheHandler->serializerName]);
     }
 
-    public function getCache(string $cacheName): CacheHandler
+    public function getCache(string $cacheName, bool $isNew = false): CacheHandler
     {
         if (empty($this->registerCaches[$cacheName])) {
             throw new Exception("cache[{$cacheName}] is not registered");
         }
-        /** @var $obj CacheHandler */
-        $obj = $this->registerCaches[$cacheName];
-        if (!$obj->isInit()) {
-            $this->setCacheDriver($obj);
-            $this->setCacheSerializer($obj);
-            $obj->setLocker($this->locker);
-            $obj->prefix = $this->getPrefix();
-            $obj->setInit();
+        if (!$isNew && isset($this->registerCacheObjs[$cacheName])) {
+            return $this->registerCacheObjs[$cacheName];
         }
+        /** @var $obj CacheHandler */
+        $obj = new $this->registerCaches[$cacheName];
+        $this->setCacheDriver($obj);
+        $this->setCacheSerializer($obj);
+        $obj->setLocker($this->locker);
+        $obj->prefix = $this->getPrefix();
+        $this->registerCacheObjs[$cacheName] = $obj;
         return $obj;
     }
 

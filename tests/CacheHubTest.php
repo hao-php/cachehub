@@ -17,7 +17,7 @@ class CacheHubTest extends TestCase
     public function testNullKey()
     {
         $registerCaches = [
-            'test' => new TestCache(),
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
@@ -29,43 +29,48 @@ class CacheHubTest extends TestCase
         }
     }
 
-    public function testRepeatedKey()
-    {
-        $registerCaches = [
-            'test' => new TestCache(),
-            'test_1' => new TestRepeatedCache(),
-        ];
-        try {
-            $cacheHub = Common::getCacheHub($registerCaches);
-        } catch (\Throwable $e) {
-            $this->assertEquals('cache[test_1] key[test] is repeated', $e->getMessage());
-        }
-    }
+    // public function testRepeatedKey()
+    // {
+    //     $registerCaches = [
+    //         'test' => new TestCache(),
+    //         'test_1' => new TestRepeatedCache(),
+    //     ];
+    //     try {
+    //         $cacheHub = Common::getCacheHub($registerCaches);
+    //     } catch (\Throwable $e) {
+    //         $this->assertEquals('cache[test_1] key[test] is repeated', $e->getMessage());
+    //     }
+    // }
 
     public function testGet()
     {
 
-        $cache = new TestCache();
-        $cache->buildLock = false;
+        $cache = [
+            'buildLock' => false,
+        ];
         $this->_testGet($cache);
 
 
-        $cache = new TestCache();
-        $cache->buildLock = true;
+        $cache = [
+            'buildLock' => true,
+        ];
         $this->_testGet($cache);
 
     }
 
-    public function _testGet($cache)
+    public function _testGet($cacheTmp)
     {
         $redis = Common::getRedis();
         $redis->flushDB();
 
         $registerCaches = [
-            'test' => $cache,
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
+        foreach ($cacheTmp as $field => $v) {
+            $cache->$field = $v;
+        }
         $cache->key = 'test_string';
         $cache->expire = 60;
         $cache->valueFunc = function ($params) {
@@ -132,7 +137,7 @@ class CacheHubTest extends TestCase
         $redis->flushDB();
 
         $registerCaches = [
-            'test' => new TestCache(),
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
@@ -156,7 +161,7 @@ class CacheHubTest extends TestCase
         $redis->flushDB();
 
         $registerCaches = [
-            'test' => new TestCache(),
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
@@ -176,26 +181,31 @@ class CacheHubTest extends TestCase
 
     public function testGetArray()
     {
-        $cache = new TestCache();
-        $cache->buildLock = false;
+        $cache = [
+            'buildLock' => false,
+        ];
         $this->_testGetArray($cache);
 
 
-        $cache = new TestCache();
-        $cache->buildLock = true;
+        $cache = [
+            'buildLock' => true,
+        ];
         $this->_testGetArray($cache);
 
     }
 
-    public function _testGetArray($cache)
+    public function _testGetArray($cacheTmp)
     {
         $redis = Common::getRedis();
         $redis->flushDB();
         $registerCaches = [
-            'test' => $cache,
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
+        foreach ($cacheTmp as $field => $v) {
+            $cache->$field = $v;
+        }
         $cache->key = 'test_array';
         $cache->expire = 60;
         $cache->valueFunc = function ($params) {
@@ -238,25 +248,30 @@ class CacheHubTest extends TestCase
 
     public function testGetNull()
     {
-        $cache = new TestCache();
-        $cache->buildLock = false;
+        $cache = [
+            'buildLock' => false,
+        ];
         $this->_testGetNull($cache);
 
 
-        $cache = new TestCache();
-        $cache->buildLock = true;
+        $cache = [
+            'buildLock' => true,
+        ];
         $this->_testGetNull($cache);
     }
 
-    public function _testGetNull($cache)
+    public function _testGetNull($cacheTmp)
     {
         $redis = Common::getRedis();
         $redis->flushDB();
         $registerCaches = [
-            'test' => $cache,
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
+        foreach ($cacheTmp as $field => $v) {
+            $cache->$field = $v;
+        }
         $cache->key = 'test_null';
         $cache->isCacheNull = true;
         $cache->nullValue = '';
@@ -313,25 +328,30 @@ class CacheHubTest extends TestCase
 
     public function testVersion()
     {
-        $cache = new TestCache();
-        $cache->buildLock = false;
+        $cache = [
+            'buildLock' => false,
+        ];
         $this->_testVersion($cache);
 
 
-        $cache = new TestCache();
-        $cache->buildLock = true;
+        $cache = [
+            'buildLock' => true,
+        ];
         $this->_testVersion($cache);
     }
 
-    public function _testVersion($cache)
+    public function _testVersion($cacheTmp)
     {
         $redis = Common::getRedis();
         $redis->flushDB();
         $registerCaches = [
-            'test' => $cache,
+            'test' => 'TestCache',
         ];
         $cacheHub = Common::getCacheHub($registerCaches);
         $cache = $cacheHub->getCache('test');
+        foreach ($cacheTmp as $field => $v) {
+            $cache->$field = $v;
+        }
         $cache->addVersion = true;
         $cache->version = 1;
         $cache->valueFunc = function ($params) {
@@ -379,10 +399,14 @@ class CacheHubTest extends TestCase
 
     public function testLock()
     {
-        $redis = Common::getRedis();
+        $redis = new RedisPool();
         $redis->flushDB();
 
-        $cache = new TestCache();
+        $registerCaches = [
+            'test' => 'TestCache',
+        ];
+        $cacheHub = Common::getCacheHub($registerCaches, $redis);
+        $cache = $cacheHub->getCache('test');
         $cache->buildLock = true;
         $cache->buildWaitMod = 1;
         $cache->buildWaitTime = 10;
@@ -390,11 +414,7 @@ class CacheHubTest extends TestCase
         $cache->valueFunc = function ($params) {
             return 'test_lock';
         };
-        $registerCaches = [
-            'test' => $cache,
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+
         $cache->get();
         $lockValue = $redis->get("unit_test:test_lock");
         $this->assertTrue(empty($lockValue));
@@ -403,11 +423,11 @@ class CacheHubTest extends TestCase
         $redis->flushDB();
         \Swoole\Runtime::enableCoroutine();
         $fromArr = [];
-        run(function () use (&$fromArr) {
+        run(function () use (&$fromArr, $cacheHub) {
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
-                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr) {
-                    $cache = new TestCache();
+                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
+                    $cache = $cacheHub->getCache('test', true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -418,11 +438,6 @@ class CacheHubTest extends TestCase
                     $cache->wrapFunc = function ($data) {
                         return $data . '_wrap';
                     };
-                    $registerCaches = [
-                        'test' => $cache,
-                    ];
-                    $cacheHub = Common::getCacheHub($registerCaches);
-                    $cache = $cacheHub->getCache('test');
                     $data = $cache->get();
                     $this->assertEquals('test_lock_wrap', $data);
                     // usleep(1);
@@ -449,11 +464,11 @@ class CacheHubTest extends TestCase
 
         $redis->flushDB();
         $fromArr = [];
-        run(function () use (&$fromArr) {
+        run(function () use (&$fromArr, $cacheHub) {
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
-                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr) {
-                    $cache = new TestCache();
+                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
+                    $cache = $cacheHub->getCache('test', true);
                     $cache->buildLock = false;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -461,11 +476,6 @@ class CacheHubTest extends TestCase
                     $cache->valueFunc = function ($params) {
                         return 'test_lock';
                     };
-                    $registerCaches = [
-                        'test' => $cache,
-                    ];
-                    $cacheHub = Common::getCacheHub($registerCaches);
-                    $cache = $cacheHub->getCache('test');
                     $cache->get();
                     // usleep(1);
                     $from = $cache->getDataFrom();
@@ -491,12 +501,12 @@ class CacheHubTest extends TestCase
 
         $redis->flushDB();
         $fromArr = [];
-        run(function () use (&$fromArr) {
+        run(function () use (&$fromArr, $cacheHub) {
             $wg = new WaitGroup();
             for ($i = 0; $i < 2; $i++) {
                 $wg->add();
-                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr) {
-                    $cache = new TestCache();
+                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
+                    $cache = $cacheHub->getCache('test', true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -505,11 +515,6 @@ class CacheHubTest extends TestCase
                         sleep(1);
                         return 'test_lock';
                     };
-                    $registerCaches = [
-                        'test' => $cache,
-                    ];
-                    $cacheHub = Common::getCacheHub($registerCaches);
-                    $cache = $cacheHub->getCache('test');
                     $cache->get();
                     // usleep(1);
                     $from = $cache->getDataFrom();
@@ -535,13 +540,13 @@ class CacheHubTest extends TestCase
         $redis->flushDB();
         $fromArr = [];
         $isTimeout = 0;
-        run(function () use (&$fromArr, &$isTimeout) {
+        run(function () use (&$fromArr, &$isTimeout, $cacheHub) {
             $wg = new WaitGroup();
             for ($i = 0; $i < 2; $i++) {
                 $wg->add();
-                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, &$isTimeout) {
+                \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, &$isTimeout, $cacheHub) {
                     try {
-                        $cache = new TestCache();
+                        $cache = $cacheHub->getCache('test', true);
                         $cache->buildLock = true;
                         $cache->buildWaitMod = 2;
                         $cache->buildWaitTime = 10;
@@ -550,11 +555,6 @@ class CacheHubTest extends TestCase
                             sleep(1);
                             return 'test_lock';
                         };
-                        $registerCaches = [
-                            'test' => $cache,
-                        ];
-                        $cacheHub = Common::getCacheHub($registerCaches);
-                        $cache = $cacheHub->getCache('test');
                         $cache->get();
                         // usleep(1);
                         $from = $cache->getDataFrom();

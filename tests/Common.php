@@ -18,9 +18,11 @@ class Common
         return $redis;
     }
 
-    public static function getCacheHub($registerCaches)
+    public static function getCacheHub($registerCaches, $redis = null)
     {
-        $redis = self::getRedis();
+        if (empty($redis)) {
+            $redis = self::getRedis();
+        }
 
         $cacheHub = new CacheHub($registerCaches);
         $cacheHub->setPrefix('unit_test:');

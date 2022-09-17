@@ -70,7 +70,7 @@ class AppCacheHub
     public static function getRegisterCaches()
     {
         return [
-            self::EX_TEXT => new ExTest,
+            self::EX_TEXT => 'ExTest',
         ];
     }
 
