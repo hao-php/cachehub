@@ -1,8 +1,8 @@
 {
-    "name": "hao/cachehub",
+    "name": "haoa/cachehub",
     "autoload": {
         "psr-4": {
-            "Hao\\CacheHub\\": "src/"
+            "Haoa\\CacheHub\\": "src/"
         }
     },
     "require-dev": {
