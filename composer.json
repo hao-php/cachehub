@@ -1,8 +1,8 @@
 {
-    "name": "mingle/cachehub",
+    "name": "hao/cachehub",
     "autoload": {
         "psr-4": {
-            "Mingle\\CacheHub\\": "src/"
+            "Hao\\CacheHub\\": "src/"
         }
     },
     "require-dev": {
