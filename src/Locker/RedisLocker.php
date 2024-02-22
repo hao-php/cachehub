@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Locker;
+namespace Haoa\CacheHub\Locker;
 
 class RedisLocker extends Locker
 {

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Serializer;
+namespace Haoa\CacheHub\Serializer;
 
-class Json implements SerializerInterface
+class JsonSerializer implements SerializerInterface
 {
 
 

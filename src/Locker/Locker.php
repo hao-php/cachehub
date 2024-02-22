@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Locker;
+namespace Haoa\CacheHub\Locker;
 
-abstract class Locker {
+abstract class Locker
+{
 
     /**
      * @param string $key 键
@@ -11,19 +12,19 @@ abstract class Locker {
      * @param int $expire 过期时间, 秒
      * @return bool
      */
-    public abstract function tryLock(string $key,  $value, int $expire) : bool;
+    public abstract function tryLock(string $key, $value, int $expire): bool;
 
     /**
      * @param string $key 键
      * @return bool
      */
-    public abstract function unLock(string $key) : bool;
+    public abstract function unLock(string $key): bool;
 
     /**
      * @param string $key 键
      * @return bool
      */
-    public abstract function isLocked(string $key) : bool;
+    public abstract function isLocked(string $key): bool;
 
     public function getLockKey($prefix, $key, $keyParams)
     {
@@ -40,5 +41,5 @@ abstract class Locker {
         }
         return $key . '_lock';
     }
-    
+
 }

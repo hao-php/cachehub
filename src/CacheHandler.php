@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub;
+namespace Haoa\CacheHub;
 
-use Mingle\CacheHub\Driver\BaseDriver;
-use Mingle\CacheHub\Locker\Locker;
-use Mingle\CacheHub\Serializer\SerializerInterface;
+use Haoa\CacheHub\Driver\ApcuDriver;
+use Haoa\CacheHub\Driver\RedisDriver;
+use Haoa\CacheHub\Serializer\JsonSerializer;
+use Haoa\CacheHub\Serializer\OriginalSerializer;
 
 abstract class CacheHandler
 {
@@ -18,14 +19,8 @@ abstract class CacheHandler
     /** 缓存key */
     public $key = '';
 
-    /** 过期时间, 秒 */
-    public $expire = 300;
-
     /** 当数据为空时存的值, _cachehub_null */
     public $nullValue = '';
-
-    /** 空值过期时间, 秒 */
-    public $nullExpire = 60;
 
     /** 是否缓存空值 */
     public $isCacheNull = true;
@@ -48,28 +43,25 @@ abstract class CacheHandler
     /** build数据时是否加锁 */
     public $buildLock = false;
 
-    /**
-     * @var Locker
-     */
-    protected $locker;
+    /** @var array */
+    public $cacheListExample = [
+        [
+            'driver' => ApcuDriver::class,
+            'serializer' => OriginalSerializer::class, // default
+            'null_ttl' => 5,
+            'ttl' => 5,
+        ],
+        [
+            'driver' => RedisDriver::class,
+            'driver_handler' => null,
+            'serializer' => JsonSerializer::class,
+            'ttl' => 300,
+            'null_ttl' => 60,
+        ],
+    ];
 
-    /** @var BaseDriver */
-    protected $driver;
 
-    /** 使用的缓存驱动 */
-    public $driverName = 'cachehub_redis';
-
-    /** 序列化器名称 */
-    public $serializerName = 'cachehub_json';
-
-    /** @var SerializerInterface */
-    protected $serializer;
-
-    /** @var string 数据来源 */
-    protected $dataFrom = '';
-
-    /** @var bool 是否初始化 */
-    protected $isInit = false;
+    abstract protected function getCacheList(): array;
 
     /**
      * 构建数据
@@ -86,6 +78,11 @@ abstract class CacheHandler
     protected function wrapData($data)
     {
         return $data;
+    }
+
+    public function setPrefix($prefix)
+    {
+        $this->prefix = $prefix;
     }
 
 }

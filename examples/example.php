@@ -1,26 +1,66 @@
 <?php
 
-use Mingle\CacheHub\CacheHandler;
-use Mingle\CacheHub\CacheHub;
-use Mingle\CacheHub\Locker\RedisLocker;
+use Haoa\CacheHub\CacheHandler;
+use Haoa\CacheHub\CacheHub;
+use Haoa\CacheHub\Driver\ApcuDriver;
+use Haoa\CacheHub\Driver\RedisDriver as RedisDriver;
+use Haoa\CacheHub\Locker\RedisLocker;
+use Haoa\CacheHub\Serializer\JsonSerializer;
+use Haoa\CacheHub\Serializer\OriginalSerializer;
 
 require __DIR__ . '/autoload.php';
 
+class Logger implements \Haoa\CacheHub\LoggerInterface
+{
 
-class ExTest extends CacheHandler {
+
+    public function debug(string $msg): void
+    {
+        echo "debug: {$msg}\n";
+    }
+
+    public function error(string $msg): void
+    {
+        echo "error: {$msg}\n";
+    }
+}
+
+class ExTest extends CacheHandler
+{
 
     public $key = "ex_test";
-    public $expire = 60;
     public $buildLock = true;
-    public $driverName = 'cachehub_redis';
-    public $serializerName = 'cachehub_json';
+
+    public $isCacheNull = true;
+
+    protected function getCacheList(): array
+    {
+        $redis = new \Redis();
+        $redis->connect('redis');
+        $redis->select(3);
+        return [
+            [
+                'driver' => ApcuDriver::class,
+                'serializer' => OriginalSerializer::class, // default
+                'ttl' => 5,
+            ],
+            [
+                'driver' => RedisDriver::class,
+                'driver_handler' => $redis,
+                'serializer' => JsonSerializer::class,
+                'ttl' => 300,
+                'null_ttl' => 60,
+            ],
+        ];
+    }
 
     /**
      * 生成数据
      */
     protected function build($params)
     {
-        return 'ex_data';
+        return '';
+        // return 'ex_data';
     }
 
     /**
@@ -40,63 +80,59 @@ class AppCacheHub
     /**
      * 获取cacheHub对象, 自行处理单例, 初始化
      */
-    public static function getCacheHub() : CacheHub
+    public static function getCacheHub(): CacheHub
     {
-        $redis = new Redis();
+        $redis = new \Redis();
         $redis->connect('redis');
         $redis->select(3);
 
-        $cacheHub = new CacheHub(self::getRegisterCaches());
-
-        // 添加缓存驱动
-        // $cacheHub->addDrivers();
-
-        // 添加序列化器
-        // $cacheHub->addSerializer();
+        $cacheHub = new CacheHub();
 
         // 设置key的前缀
         $cacheHub->setPrefix('ex:');
 
-        // 把redis缓存注入到内置的驱动上
-        $cacheHub->getDriver('cachehub_redis')->setHandler($redis);
-
         // 注入redis锁
         $locker = new RedisLocker($redis);
         $cacheHub->setLocker($locker);
+        $cacheHub->setLogger(new Logger());
 
         return $cacheHub;
-    }
-
-    public static function getRegisterCaches()
-    {
-        return [
-            self::EX_TEXT => 'ExTest',
-        ];
     }
 
     public static function test()
     {
         $cacheHub = self::getCacheHub();
-        $cache = $cacheHub->getCache(AppCacheHub::EX_TEXT);
+        $cache = $cacheHub->getCache(ExTest::class);
+        $cache = $cacheHub->getCache(ExTest::class, true);
 
         // 获取数据
         $data = $cache->get();
         $from = $cache->getDataFrom();
         var_dump($data, $from);
 
+        $data = $cache->get();
+        $from = $cache->getDataFrom();
+        var_dump($data, $from);
+
         // 强制刷新, 获取数据
-        $cache->get('', true);
+        // $data = $cache->get('', true);
+        // var_dump($data);
 
-        // 更新数据
-        $cache->update('');
+        //
+        // // 更新数据
+        // $ret = $cache->update('');
+        // var_dump($ret);
+        //
 
-        // 设置数据
-        $cache->set('', 'test_data');
-
+        //
         // 调用原生驱动的方法
-        $cache->lPush('test', 1);
+        // $cache->lPush('test', 1);
     }
 
 }
 
 AppCacheHub::test();
+
+// apcu_store("ex:test", "test", 300);
+// $ret = apcu_fetch("ex:test1");
+// var_dump($ret);

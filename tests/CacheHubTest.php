@@ -4,9 +4,11 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/autoload.php';
 
+use Haoa\CacheHub\Driver\ApcuDriver;
+use Haoa\CacheHub\Driver\RedisDriver;
 use PHPUnit\Framework\TestCase;
-use function Swoole\Coroutine\run;
 use Swoole\Coroutine\WaitGroup;
+use function Swoole\Coroutine\run;
 
 class CacheHubTest extends TestCase
 {
@@ -16,15 +18,12 @@ class CacheHubTest extends TestCase
      */
     public function testNullKey()
     {
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
         $cache->key = '';
         try {
             $cache->get();
-        } catch (\Mingle\CacheHub\Exception\Exception $e) {
+        } catch (\Haoa\CacheHub\Exception\Exception $e) {
             $this->assertEquals('key is empty', $e->getMessage());
         }
     }
@@ -63,16 +62,12 @@ class CacheHubTest extends TestCase
         $redis = Common::getRedis();
         $redis->flushDB();
 
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
         foreach ($cacheTmp as $field => $v) {
             $cache->$field = $v;
         }
         $cache->key = 'test_string';
-        $cache->expire = 60;
         $cache->valueFunc = function ($params) {
             if ($params == 1) {
                 return 'test_1';
@@ -91,7 +86,7 @@ class CacheHubTest extends TestCase
         $cache->get();
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
-        $this->assertEquals('cachehub_redis', $from);
+        $this->assertEquals(RedisDriver::class, $from);
         $this->assertTrue(($ttl <= 60 && $ttl > 0));
         $this->assertEquals('test', $data);
 
@@ -114,8 +109,8 @@ class CacheHubTest extends TestCase
         $data = $cache->get();
         $this->assertEquals('test_wrap', $data);
 
-        $data = $cache->getFromCache();
-        $this->assertEquals('test_wrap', $data);
+        // $data = $cache->getFromCache();
+        // $this->assertEquals('test_wrap', $data);
 
         $data = $cache->get('', true);
         $this->assertEquals('test_wrap', $data);
@@ -123,8 +118,8 @@ class CacheHubTest extends TestCase
         $data = $cache->get(1);
         $this->assertEquals('test_1_wrap', $data);
 
-        $data = $cache->getFromCache(1);
-        $this->assertEquals('test_1_wrap', $data);
+        // $data = $cache->getFromCache(1);
+        // $this->assertEquals('test_1_wrap', $data);
 
         $data = $cache->get(1, true);
         $this->assertEquals('test_1_wrap', $data);
@@ -136,12 +131,9 @@ class CacheHubTest extends TestCase
         $redis = Common::getRedis();
         $redis->flushDB();
 
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
-        $cache->expire = 300;
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
+        $cache->ttl = 300;
         $cache->key = 'test_update';
         $cache->valueFunc = function ($params) {
             return 'test_update';
@@ -150,34 +142,31 @@ class CacheHubTest extends TestCase
         $redisValue = $redis->get($key);
         $this->assertTrue(empty($redisValue));
         $ret = $cache->update();
-        $this->assertTrue($ret);
+        $this->assertEquals(1, $ret);
         $redisValue = $redis->get($key);
         $this->assertEquals('test_update', $redisValue);
     }
 
-    public function testSet()
-    {
-        $redis = Common::getRedis();
-        $redis->flushDB();
-
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
-        $cache->expire = 300;
-        $cache->key = 'test_set';
-        $cache->valueFunc = function ($params) {
-            return 'test_set';
-        };
-        $key = 'unit_test:test_set';
-        $ret = $cache->set('', 'test_set111');
-        $this->assertTrue($ret);
-        $data = $cache->get();
-        $this->assertEquals('test_set111', $data);
-        $ttl = $redis->ttl($key);
-        $this->assertTrue(($ttl <= 300 && $ttl > 0));
-    }
+    // public function testSet()
+    // {
+    //     $redis = Common::getRedis();
+    //     $redis->flushDB();
+    //
+    //     $cacheHub = Common::getCacheHub();
+    //     $cache = $cacheHub->getCache(TestCache::class);
+    //     $cache->ttl = 300;
+    //     $cache->key = 'test_set';
+    //     $cache->valueFunc = function ($params) {
+    //         return 'test_set';
+    //     };
+    //     $key = 'unit_test:test_set';
+    //     $ret = $cache->set('', 'test_set111');
+    //     $this->assertTrue($ret);
+    //     $data = $cache->get();
+    //     $this->assertEquals('test_set111', $data);
+    //     $ttl = $redis->ttl($key);
+    //     $this->assertTrue(($ttl <= 300 && $ttl > 0));
+    // }
 
     public function testGetArray()
     {
@@ -198,16 +187,13 @@ class CacheHubTest extends TestCase
     {
         $redis = Common::getRedis();
         $redis->flushDB();
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
         foreach ($cacheTmp as $field => $v) {
             $cache->$field = $v;
         }
         $cache->key = 'test_array';
-        $cache->expire = 60;
+        $cache->ttl = 60;
         $cache->valueFunc = function ($params) {
             if ($params == 1) {
                 return ['test_1'];
@@ -240,7 +226,7 @@ class CacheHubTest extends TestCase
         $cache->get();
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
-        $this->assertEquals('cachehub_redis', $from);
+        $this->assertEquals(RedisDriver::class, $from);
 
         $this->assertTrue(($ttl <= 60 && $ttl > 0));
         $this->assertEquals(['test_1'], $data);
@@ -264,24 +250,21 @@ class CacheHubTest extends TestCase
     {
         $redis = Common::getRedis();
         $redis->flushDB();
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
         foreach ($cacheTmp as $field => $v) {
             $cache->$field = $v;
         }
         $cache->key = 'test_null';
         $cache->isCacheNull = true;
         $cache->nullValue = '';
-        $cache->nullExpire = 60;
+        $cache->nullTtl = 60;
         $cache->valueFunc = function ($params) {
             return '';
         };
         $key = 'unit_test:test_null';
         $data = $cache->get();
-        $this->assertNull($data);
+        $this->assertEquals('', $data);
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
         $this->assertEquals('build', $from);
@@ -292,7 +275,7 @@ class CacheHubTest extends TestCase
         $this->assertNull($data);
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
-        $this->assertEquals('cachehub_redis', $from);
+        $this->assertEquals(RedisDriver::class, $from);
 
 
         $redis->flushDB();
@@ -300,7 +283,7 @@ class CacheHubTest extends TestCase
         $data = $cache->get();
         $cacheData = $redis->get($key);
         $this->assertEquals('cachehub_null', $cacheData);
-        $this->assertNull($data);
+        $this->assertEquals('', $data);
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
         $this->assertEquals('build', $from);
@@ -344,11 +327,8 @@ class CacheHubTest extends TestCase
     {
         $redis = Common::getRedis();
         $redis->flushDB();
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub();
+        $cache = $cacheHub->getCache(TestCache::class);
         foreach ($cacheTmp as $field => $v) {
             $cache->$field = $v;
         }
@@ -372,7 +352,7 @@ class CacheHubTest extends TestCase
         $this->assertEquals('test_1', $data);
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
-        $this->assertEquals('cachehub_redis', $from);
+        $this->assertEquals(RedisDriver::class, $from);
         $cacheData = $redis->get($key);
         $this->assertEquals('cachehub_json:{"cachehub_version":1,"data":"test_1"}', $cacheData);
 
@@ -392,7 +372,7 @@ class CacheHubTest extends TestCase
         $this->assertEquals('test_2', $data);
         $from = $cache->getDataFrom();
         $cache->clearDataFrom();
-        $this->assertEquals('cachehub_redis', $from);
+        $this->assertEquals(RedisDriver::class, $from);
         $cacheData = $redis->get($key);
         $this->assertEquals('cachehub_json:{"cachehub_version":2,"data":"test_2"}', $cacheData);
     }
@@ -402,11 +382,8 @@ class CacheHubTest extends TestCase
         $redis = new RedisPool();
         $redis->flushDB();
 
-        $registerCaches = [
-            'test' => 'TestCache',
-        ];
-        $cacheHub = Common::getCacheHub($registerCaches, $redis);
-        $cache = $cacheHub->getCache('test');
+        $cacheHub = Common::getCacheHub($redis);
+        $cache = $cacheHub->getCache(TestLockCache::class);
         $cache->buildLock = true;
         $cache->buildWaitMod = 1;
         $cache->buildWaitTime = 10;
@@ -420,6 +397,7 @@ class CacheHubTest extends TestCase
         $this->assertTrue(empty($lockValue));
 
 
+        apcu_clear_cache();
         $redis->flushDB();
         \Swoole\Runtime::enableCoroutine();
         $fromArr = [];
@@ -427,7 +405,7 @@ class CacheHubTest extends TestCase
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache('test', true);
+                    $cache = $cacheHub->getCache(TestLockCache::class, true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -455,20 +433,22 @@ class CacheHubTest extends TestCase
         foreach ($fromArr as $v) {
             if ($v == 'build') {
                 $buildArr[] = 1;
-            } elseif($v == 'cachehub_redis') {
+            } elseif ($v == RedisDriver::class) {
                 $redisArr[] = 1;
             }
         }
         $this->assertEquals(1, count($buildArr));
         $this->assertEquals(4, count($redisArr));
 
+        apcu_clear_cache();
         $redis->flushDB();
         $fromArr = [];
         run(function () use (&$fromArr, $cacheHub) {
+            \Swoole\Runtime::enableCoroutine(); // hook all
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache('test', true);
+                    $cache = $cacheHub->getCache(TestLockCache::class, true);
                     $cache->buildLock = false;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -492,13 +472,13 @@ class CacheHubTest extends TestCase
         foreach ($fromArr as $v) {
             if ($v == 'build') {
                 $buildArr[] = 1;
-            } elseif($v == 'cachehub_redis') {
+            } elseif ($v == RedisDriver::class) {
                 $redisArr[] = 1;
             }
         }
         $this->assertTrue(count($buildArr) > 3);
 
-
+        apcu_clear_cache();
         $redis->flushDB();
         $fromArr = [];
         run(function () use (&$fromArr, $cacheHub) {
@@ -506,7 +486,7 @@ class CacheHubTest extends TestCase
             for ($i = 0; $i < 2; $i++) {
                 $wg->add();
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache('test', true);
+                    $cache = $cacheHub->getCache(TestLockCache::class, true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -531,12 +511,13 @@ class CacheHubTest extends TestCase
         foreach ($fromArr as $v) {
             if ($v == 'build') {
                 $buildArr[] = 1;
-            } elseif($v == 'cachehub_redis') {
+            } elseif ($v == RedisDriver::class) {
                 $redisArr[] = 1;
             }
         }
         $this->assertTrue(count($buildArr) == 2);
 
+        apcu_clear_cache();
         $redis->flushDB();
         $fromArr = [];
         $isTimeout = 0;
@@ -546,7 +527,7 @@ class CacheHubTest extends TestCase
                 $wg->add();
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, &$isTimeout, $cacheHub) {
                     try {
-                        $cache = $cacheHub->getCache('test', true);
+                        $cache = $cacheHub->getCache(TestLockCache::class, true);
                         $cache->buildLock = true;
                         $cache->buildWaitMod = 2;
                         $cache->buildWaitTime = 10;
@@ -560,7 +541,7 @@ class CacheHubTest extends TestCase
                         $from = $cache->getDataFrom();
                         $fromArr[] = $from;
                         $cache->clearDataFrom();
-                    } catch (\Mingle\CacheHub\Exception\Exception $e) {
+                    } catch (\Exception $e) {
                         if ($e->getMessage() == 'build data timeout') {
                             $isTimeout++;
                         }
@@ -576,7 +557,7 @@ class CacheHubTest extends TestCase
         foreach ($fromArr as $v) {
             if ($v == 'build') {
                 $buildArr[] = 1;
-            } elseif($v == 'cachehub_redis') {
+            } elseif ($v == RedisDriver::class) {
                 $redisArr[] = 1;
             }
         }

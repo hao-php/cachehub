@@ -2,17 +2,24 @@
 declare(strict_types=1);
 
 
-use Mingle\CacheHub\CacheHandler;
+use Haoa\CacheHub\CacheHandler;
+use Haoa\CacheHub\Driver\ApcuDriver;
+use Haoa\CacheHub\Driver\RedisDriver;
+use Haoa\CacheHub\Serializer\JsonSerializer;
+use Haoa\CacheHub\Serializer\OriginalSerializer;
 
 class TestCache extends CacheHandler
 {
 
     public $key = 'test';
     public $isCacheNull = true;
-    public $nullExpire = 10;
     public $nullValue = '';
     public $valueFunc;
     public $wrapFunc;
+
+    public $ttl = 60;
+
+    public $nullTtl = 60;
 
     public function build($params)
     {
@@ -30,6 +37,73 @@ class TestCache extends CacheHandler
         return call_user_func($this->wrapFunc, $data);
     }
 
+    protected function getCacheList(): array
+    {
+        return [
+            // [
+            //     'driver' => ApcuDriver::class,
+            //     'serializer' => OriginalSerializer::class, // default
+            //     'null_ttl' => 5,
+            //     'ttl' => 5,
+            // ],
+            [
+                'driver' => RedisDriver::class,
+                'driver_handler' => new RedisPool(),
+                'serializer' => JsonSerializer::class,
+                'ttl' => $this->ttl,
+                'null_ttl' => $this->nullTtl,
+            ],
+        ];
+    }
+}
+
+class TestLockCache extends CacheHandler
+{
+
+    public $key = 'test';
+    public $isCacheNull = true;
+    public $nullValue = '';
+    public $valueFunc;
+    public $wrapFunc;
+
+    public $ttl = 60;
+
+    public $nullTtl = 60;
+
+    public function build($params)
+    {
+        if (empty($this->valueFunc)) {
+            return '';
+        }
+        return call_user_func($this->valueFunc, $params);
+    }
+
+    public function wrapData($data)
+    {
+        if (empty($this->wrapFunc)) {
+            return $data;
+        }
+        return call_user_func($this->wrapFunc, $data);
+    }
+
+    protected function getCacheList(): array
+    {
+        return [
+            [
+                'driver' => ApcuDriver::class,
+                'serializer' => OriginalSerializer::class, // default
+                'null_ttl' => 5,
+                'ttl' => 5,
+            ],
+            [
+                'driver' => RedisDriver::class,
+                'driver_handler' => new RedisPool(),
+                'serializer' => JsonSerializer::class,
+                'ttl' => $this->ttl,
+                'null_ttl' => $this->nullTtl,
+            ],
+        ];
+    }
 }
 
 class TestRepeatedCache extends CacheHandler
@@ -37,9 +111,27 @@ class TestRepeatedCache extends CacheHandler
 
     public $key = 'test';
     public $isCacheNull = true;
-    public $nullExpire = 10;
     public $nullValue = '';
     public $valueFunc;
+
+    protected function getCacheList(): array
+    {
+        return [
+            [
+                'driver' => ApcuDriver::class,
+                'serializer' => OriginalSerializer::class, // default
+                'null_ttl' => 5,
+                'ttl' => 5,
+            ],
+            [
+                'driver' => RedisDriver::class,
+                'driver_handler' => null,
+                'serializer' => JsonSerializer::class,
+                'ttl' => 300,
+                'null_ttl' => 60,
+            ],
+        ];
+    }
 
     public function build($params)
     {

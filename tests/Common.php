@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use Mingle\CacheHub\CacheHub;
-use Mingle\CacheHub\Locker\RedisLocker;
+use Haoa\CacheHub\CacheHub;
+use Haoa\CacheHub\Locker\RedisLocker;
 
 class Common
 {
@@ -18,15 +18,14 @@ class Common
         return $redis;
     }
 
-    public static function getCacheHub($registerCaches, $redis = null)
+    public static function getCacheHub($redis = null)
     {
         if (empty($redis)) {
             $redis = self::getRedis();
         }
 
-        $cacheHub = new CacheHub($registerCaches);
+        $cacheHub = new CacheHub();
         $cacheHub->setPrefix('unit_test:');
-        $cacheHub->getDriver('cachehub_redis')->setHandler($redis);
         $locker = new RedisLocker($redis);
         $cacheHub->setLocker($locker);
         return $cacheHub;

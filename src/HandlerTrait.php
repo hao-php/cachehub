@@ -1,20 +1,41 @@
 <?php
 
-namespace Mingle\CacheHub;
+namespace Haoa\CacheHub;
 
-use Mingle\CacheHub\Common\Common;
-use Mingle\CacheHub\Driver\BaseDriver;
-use Mingle\CacheHub\Exception\Exception;
-use Mingle\CacheHub\Serializer\SerializerInterface;
+use Haoa\CacheHub\Common\Common;
+use Haoa\CacheHub\Driver\BaseDriver;
+use Haoa\CacheHub\Exception\Exception;
+use Haoa\CacheHub\Locker\Locker;
+use Haoa\CacheHub\Serializer\OriginalSerializer;
+use Haoa\CacheHub\Serializer\SerializerInterface;
 
 trait HandlerTrait
 {
+
+    /**
+     * @var Locker
+     */
+    protected $locker;
+
+    /** @var string 数据来源 */
+    protected $dataFrom = '';
+
+    /** @var bool 是否初始化 */
+    protected $isInit = false;
+
+    protected Container $container;
+
+    public function setContainer(Container $container)
+    {
+        $this->container = $container;
+    }
+
     public function setDriver(BaseDriver $driver)
     {
         $this->driver = $driver;
     }
 
-    public function getSerializer(): getSerializer
+    public function getSerializer(): SerializerInterface
     {
         return $this->serializer;
     }
@@ -95,15 +116,16 @@ trait HandlerTrait
     /**
      * 保存空值到缓存
      */
-    protected function cacheEmptyValue($key)
+    protected function cacheEmptyValue(BaseDriver $driver, $key, $nullTtl)
     {
         if (!$this->isCacheNull) {
             return true;
         }
-        if (empty($this->nullExpire) || $this->nullExpire <= 0) {
-            $this->nullExpire = 60;
+        $nullTtl = intval($nullTtl);
+        if (empty($nullTtl) || $nullTtl <= 0) {
+            $nullTtl = CacheHub::DEFAULT_NULL_TTL;
         }
-        return (bool)$this->driver->set($key, $this->nullValue, $this->nullExpire);
+        return (bool)$driver->set($key, $this->nullValue, $nullTtl);
     }
 
     protected function checkEmptyValue($value)
@@ -117,7 +139,7 @@ trait HandlerTrait
     /**
      * 加锁, 并等待数据
      */
-    protected function lockGetData($key, $keyParams, &$stack): array
+    protected function lockGetData(BaseDriver $driver, $key, $keyParams, &$stack): array
     {
         if (!$this->buildLock || empty($this->buildWaitCount) || $this->buildWaitCount <= 0) {
             return [false, null];
@@ -136,7 +158,7 @@ trait HandlerTrait
         }
 
         for ($i = 0; $i < $this->buildWaitCount; $i++) {
-            $data = $this->driver->get($key);
+            $data = $driver->get($key);
             list($parseRet, $data) = $this->parseCacheData($data);
             if ($parseRet) {
                 return [true, $data];
@@ -156,48 +178,93 @@ trait HandlerTrait
 
     }
 
-    function getExpire(): int
-    {
-        if (empty($this->expire) || $this->expire <= 0) {
-            $this->expire = 300;
-        }
-        return $this->expire;
-    }
-
     public function get($keyParams = '', $refresh = false)
     {
-        $key = $this->getDriverKey($keyParams);
+        if (empty($this->getCacheList())) {
+            throw new \Exception('cacheList is empty');
+        }
+        $setDrivers = [];
+        $len = count($this->getCacheList());
+        $index = 0;
+        $data = null;
+        $get = false;
 
         if (!$refresh) {
-            $data = $this->driver->get($key);
-            list($parseRet, $data) = $this->parseCacheData($data);
-            if ($parseRet) {
-                $this->setDataFrom($this->driverName);
-                return $this->wrapData($data);
-            }
+            foreach ($this->getCacheList() as $v) {
+                $index++;
+                if (empty($v['driver'])) {
+                    throw new \Exception('driver is empty');
+                }
+                $serializerClass = $v['serializer'] ?: OriginalSerializer::class;
+                $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
 
-            // 加锁等待数据
-            $stack = new \SplStack();
-            list ($get, $data) = $this->lockGetData($key, $keyParams, $stack);
-            if ($get) {
-                $this->setDataFrom($this->driverName);
-                return $this->wrapData($data);
+                $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
+
+                $data = $driver->get($key);
+                list($get, $data) = $this->parseCacheData($data);
+                if ($get) {
+                    $this->setDataFrom($v['driver']);
+                    break;
+                }
+
+                // 最后一级缓存
+                if ($index == $len) {
+                    // 加锁等待数据
+                    $stack = new \SplStack();
+                    list ($get, $data) = $this->lockGetData($driver, $key, $keyParams, $stack);
+                    if ($get) {
+                        $this->setDataFrom($v['driver']);
+                        break;
+                    }
+                }
+
+                $setDrivers[] = [
+                    'driver_class' => $v['driver'],
+                    'driver' => $driver,
+                    'key' => $key,
+                    'ttl' => $v['ttl'] ?? 0,
+                    'null_ttl' => $v['null_ttl'] ?? 0,
+                ];
+            }
+        } else {
+            foreach ($this->getCacheList() as $v) {
+                if (empty($v['driver'])) {
+                    throw new \Exception('driver is empty');
+                }
+                $serializerClass = $v['serializer'] ?: OriginalSerializer::class;
+                $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
+                $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
+
+                $setDrivers[] = [
+                    'driver_class' => $v['driver'],
+                    'driver' => $driver,
+                    'key' => $key,
+                    'ttl' => $v['ttl'] ?? 0,
+                    'null_ttl' => $v['null_ttl'] ?? 0,
+                ];
             }
         }
 
-        $data = $this->build($keyParams);
-        $this->setDataFrom('build');
+        if (!$get) {
+            $data = $this->build($keyParams);
+            $this->setDataFrom('build');
+        }
+        $setLen = count($setDrivers);
+        if ($setLen > 0) {
+            for ($i = $setLen - 1; $i >= 0; $i--) {
+                /** @var BaseDriver $driver */
+                $driver = $setDrivers[$i]['driver'];
+                $key = $setDrivers[$i]['key'];
+                $driverClass = $setDrivers[$i]['driver_class'];
+                $ret = $this->setBuildData($driver, $key, $data, $setDrivers[$i]['ttl'], $setDrivers[$i]['null_ttl']);
+                if (!$ret) {
+                    $this->container->getLogger() and $this->container->getLogger()->error("{$driverClass} fail to set");
+                } else {
+                    $this->container->getLogger() and $this->container->getLogger()->debug("{$driverClass} set successfully");
+                }
+            }
+        }
 
-        $this->setBuildData($key, $data);
-
-        return $this->wrapData($data);
-    }
-
-    public function getFromCache($keyParams = '')
-    {
-        $key = $this->getDriverKey($keyParams);
-        $data = $this->driver->get($key);
-        list($parseRet, $data) = $this->parseCacheData($data);
         return $this->wrapData($data);
     }
 
@@ -216,39 +283,64 @@ trait HandlerTrait
         return [false, null];
     }
 
-    protected function setBuildData($key, &$data)
+    protected function setBuildData(BaseDriver $driver, $key, $data, $ttl, $nullTtl)
     {
         // 缓存空值
         if ($data === '' || Common::checkEmpty($data)) {
             $data = null;
-            return $this->cacheEmptyValue($key);
+            return $this->cacheEmptyValue($driver, $key, $nullTtl);
         }
 
+        $ttl = intval($ttl);
+        if ($ttl == 0 || $ttl < 0) {
+            $ttl = CacheHub::DEFAULT_TTL;
+        }
         // 添加版本号
         $versionData = $this->addDataVersion($data);
         if ($versionData) {
-            return (bool)$this->driver->set($key, $versionData, $this->getExpire());
+            return (bool)$driver->set($key, $versionData, $ttl);
         } else {
-            return (bool)$this->driver->set($key, $data, $this->getExpire());
+            return (bool)$driver->set($key, $data, $ttl);
         }
     }
 
-    public function update($keyParams = '')
+    public function update($keyParams = ''): int
     {
-        $key = $this->getDriverKey($keyParams);
         $data = $this->build($keyParams);
-        return $this->setBuildData($key, $data);
-    }
+        $successNum = 0;
+        $cacheList = $this->getCacheList();
+        $cacheList = array_reverse($cacheList);
+        foreach ($cacheList as $v) {
+            if (empty($v['driver'])) {
+                throw new \Exception('driver is empty');
+            }
+            $serializerClass = $v['serializer'] ?: OriginalSerializer::class;
+            $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
 
-    public function set($keyParams = '', $data)
-    {
-        $key = $this->getDriverKey($keyParams);
-        return (bool)$this->driver->set($key, $data, $this->getExpire());
+            $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
+            $ret = $this->setBuildData($driver, $key, $data, $v['ttl'] ?? 0, $v['null_ttl'] ?? 0);
+            if (!$ret) {
+                $this->container->getLogger() and $this->container->getLogger()->error($v['driver'] . " fail to set");
+            } else {
+                $successNum++;
+                $this->container->getLogger() and $this->container->getLogger()->debug("{$driverClass} set successfully");
+            }
+        }
+
+        return $successNum;
     }
 
     public function __call($name, $arguments)
     {
-        return call_user_func_array([$this->driver, $name], $arguments);
+        if (count($this->getCacheList()) == 1) {
+            $cacheList = $this->getCacheList();
+            $v = reset($cacheList);
+            $serializerClass = $v['serializer'] ?? OriginalSerializer::class;
+            $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
+
+            return call_user_func_array([$driver, $name], $arguments);
+        }
+        throw new \Exception("{$name} is unsupported");
     }
 
 }

@@ -1,21 +1,26 @@
 <?php
 declare(strict_types=1);
 
-namespace Mingle\CacheHub\Driver;
+namespace Haoa\CacheHub\Driver;
 
-use Mingle\CacheHub\Exception\Exception;
-use Mingle\CacheHub\Serializer\SerializerInterface;
+use Haoa\CacheHub\Exception\Exception;
+use Haoa\CacheHub\Serializer\SerializerInterface;
 
 abstract class BaseDriver
 {
 
     protected $handler;
+
     /** @var SerializerInterface */
     protected $serializer;
 
     abstract public function get($key);
 
-    abstract public function set($key, $value, $expire = null);
+    abstract public function set($key, $value, $ttl = null): bool;
+
+    abstract public function delete(string $key): bool;
+
+    abstract public function multiDelete(array $key);
 
     /** 构建最终的缓存key */
     public function buildKey(string $prefix, string $key, $keyParams = ''): string
