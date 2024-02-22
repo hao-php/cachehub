@@ -20,8 +20,6 @@ class CacheHub
     /** @var Locker 用于构建缓存时的锁 */
     protected $locker;
 
-    protected LoggerInterface $logger;
-
     protected Container $container;
 
     /**

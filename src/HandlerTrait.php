@@ -258,9 +258,9 @@ trait HandlerTrait
                 $driverClass = $setDrivers[$i]['driver_class'];
                 $ret = $this->setBuildData($driver, $key, $data, $setDrivers[$i]['ttl'], $setDrivers[$i]['null_ttl']);
                 if (!$ret) {
-                    $this->container->getLogger() and $this->container->getLogger()->error("{$driverClass} fail to set");
+                    $this->container->getLogger() and $this->container->getLogger()->error("key:{$key}, {$driverClass} fail to set");
                 } else {
-                    $this->container->getLogger() and $this->container->getLogger()->debug("{$driverClass} set successfully");
+                    $this->container->getLogger() and $this->container->getLogger()->debug("key:{$key}, {$driverClass} set successfully");
                 }
             }
         }
@@ -320,10 +320,10 @@ trait HandlerTrait
             $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
             $ret = $this->setBuildData($driver, $key, $data, $v['ttl'] ?? 0, $v['null_ttl'] ?? 0);
             if (!$ret) {
-                $this->container->getLogger() and $this->container->getLogger()->error($v['driver'] . " fail to set");
+                $this->container->getLogger() and $this->container->getLogger()->error("key:{$key}, " . $v['driver'] . " fail to set");
             } else {
                 $successNum++;
-                $this->container->getLogger() and $this->container->getLogger()->debug("{$driverClass} set successfully");
+                $this->container->getLogger() and $this->container->getLogger()->debug("key:{$key}, " . $v['driver'] . " set successfully");
             }
         }
 
