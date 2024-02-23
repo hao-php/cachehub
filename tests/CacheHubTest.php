@@ -125,6 +125,56 @@ class CacheHubTest extends TestCase
         $this->assertEquals('test_1_wrap', $data);
     }
 
+    public function testMultiGet()
+    {
+        $cache = [
+            'buildLock' => false,
+        ];
+        $this->_testGetArray($cache);
+
+
+        $cache = [
+            'buildLock' => true,
+        ];
+        $this->_testMultiGet($cache);
+
+    }
+
+    public function _testMultiGet($cacheTmp)
+    {
+        $redis = Common::getRedis();
+        $redis->flushDB();
+
+        $cacheHub = Common::getCacheHub();
+        /** @var TestCache2 $cache */
+        $cache = $cacheHub->getCache(TestCache2::class);
+        foreach ($cacheTmp as $field => $v) {
+            $cache->$field = $v;
+        }
+        $cache->key = 'test_multi_get';
+        $cache->multiBuildFunc = function ($params) {
+            $data = [];
+            foreach ($params as $key) {
+                $data[$key] = [$key . '_data'];
+            }
+            return $data;
+        };
+        $data = $cache->multiGet(['test1', 'test2']);
+        $from = $cache->getDataFrom();
+        $cache->clearDataFrom();
+
+        $this->assertEquals(['test1' => ['test1_data'], 'test2' => ['test2_data']], $data);
+        $this->assertEquals(['test1' => 'build', 'test2' => 'build'], $from);
+
+        apcu_delete("unit_test:test_multi_get:test1");
+        $data = $cache->multiGet(['test1', 'test2']);
+        $from = $cache->getDataFrom();
+        $cache->clearDataFrom();
+        $this->assertEquals(['test1' => RedisDriver::class, 'test2' => ApcuDriver::class], $from);
+
+        $redis->flushDB();
+    }
+
 
     public function testUpdate()
     {
@@ -383,7 +433,7 @@ class CacheHubTest extends TestCase
         $redis->flushDB();
 
         $cacheHub = Common::getCacheHub($redis);
-        $cache = $cacheHub->getCache(TestLockCache::class);
+        $cache = $cacheHub->getCache(TestCache2::class);
         $cache->buildLock = true;
         $cache->buildWaitMod = 1;
         $cache->buildWaitTime = 10;
@@ -405,7 +455,7 @@ class CacheHubTest extends TestCase
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache(TestLockCache::class, true);
+                    $cache = $cacheHub->getCache(TestCache2::class, true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -448,7 +498,7 @@ class CacheHubTest extends TestCase
             $wg = new WaitGroup(5);
             for ($i = 0; $i < 5; $i++) {
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache(TestLockCache::class, true);
+                    $cache = $cacheHub->getCache(TestCache2::class, true);
                     $cache->buildLock = false;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -486,7 +536,7 @@ class CacheHubTest extends TestCase
             for ($i = 0; $i < 2; $i++) {
                 $wg->add();
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, $cacheHub) {
-                    $cache = $cacheHub->getCache(TestLockCache::class, true);
+                    $cache = $cacheHub->getCache(TestCache2::class, true);
                     $cache->buildLock = true;
                     $cache->buildWaitMod = 1;
                     $cache->buildWaitTime = 10;
@@ -527,7 +577,7 @@ class CacheHubTest extends TestCase
                 $wg->add();
                 \Swoole\Coroutine::create(function () use ($wg, $i, &$fromArr, &$isTimeout, $cacheHub) {
                     try {
-                        $cache = $cacheHub->getCache(TestLockCache::class, true);
+                        $cache = $cacheHub->getCache(TestCache2::class, true);
                         $cache->buildLock = true;
                         $cache->buildWaitMod = 2;
                         $cache->buildWaitTime = 10;

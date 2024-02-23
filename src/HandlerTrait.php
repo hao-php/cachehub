@@ -17,8 +17,8 @@ trait HandlerTrait
      */
     protected $locker;
 
-    /** @var string 数据来源 */
-    protected $dataFrom = '';
+    /** @var string|array 数据来源 */
+    protected $dataFrom = [];
 
     /** @var bool 是否初始化 */
     protected $isInit = false;
@@ -89,7 +89,7 @@ trait HandlerTrait
     protected function addDataVersion($data)
     {
         if (!$this->addVersion) {
-            return false;
+            return $data;
         }
         $data = [
             'cachehub_version' => $this->version,
@@ -98,19 +98,19 @@ trait HandlerTrait
         return $data;
     }
 
-    protected function setDataFrom(string $step)
+    protected function setDataFrom(string|array $step)
     {
         $this->dataFrom = $step;
     }
 
-    public function getDataFrom(): string
+    public function getDataFrom(): string|array
     {
         return $this->dataFrom;
     }
 
     public function clearDataFrom()
     {
-        $this->dataFrom = '';
+        $this->dataFrom = [];
     }
 
     /**
@@ -208,7 +208,7 @@ trait HandlerTrait
                 }
 
                 // 最后一级缓存
-                if ($index == $len) {
+                if ($index == $len && $driver->getCanLock()) {
                     // 加锁等待数据
                     $stack = new \SplStack();
                     list ($get, $data) = $this->lockGetData($driver, $key, $keyParams, $stack);
@@ -268,6 +268,124 @@ trait HandlerTrait
         return $this->wrapData($data);
     }
 
+    public function multiGet(array $keyParamsArr): array
+    {
+        if (empty($this->getCacheList())) {
+            throw new \Exception('cacheList is empty');
+        }
+
+        $keyParamsArrTmp = $keyParamsArr;
+        $result = [];
+        $setDrivers = [];
+        foreach ($this->getCacheList() as $v) {
+            if (empty($v['driver'])) {
+                throw new \Exception('driver is empty');
+            }
+            $serializerClass = $v['serializer'] ?: OriginalSerializer::class;
+            $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
+
+            $keyArr = [];
+            $keyMap = [];
+            foreach ($keyParamsArrTmp as $keyParams) {
+                $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
+                $keyArr[] = $key;
+                $keyMap[$key] = $keyParams;
+            }
+
+            $keyParamsArrTmp = [];
+            $dataArr = $driver->multiGet($keyArr);
+            $emptyKeyArr = [];
+            foreach ($dataArr as $dKey => $value) {
+                list($get, $value) = $this->parseCacheData($value);
+                if (!$get) {
+                    $keyParamsArrTmp[] = $keyMap[$dKey];
+                    $emptyKeyArr[$dKey] = $keyMap[$dKey];
+                } else {
+                    $result[$keyMap[$dKey]] = $value;
+                    $this->dataFrom[$keyMap[$dKey]] = $v['driver'];
+                }
+            }
+
+            if (!empty($emptyKeyArr)) {
+                $setDrivers[] = [
+                    'driver_class' => $v['driver'],
+                    'driver' => $driver,
+                    'key_arr' => $emptyKeyArr,
+                    'ttl' => $v['ttl'] ?? 0,
+                    'null_ttl' => $v['null_ttl'] ?? 0,
+                ];
+            }
+        }
+
+        if (!empty($keyParamsArrTmp)) {
+            $data = $this->multiBuild($keyParamsArrTmp);
+            foreach ($data as $keyParams => $vv) {
+                $this->dataFrom[$keyParams] = 'build';
+                $result[$keyParams] = $vv;
+            }
+        }
+
+        $len = count($setDrivers);
+        if ($len > 0) {
+            for ($i = $len - 1; $i >= 0; $i--) {
+                /** @var BaseDriver $driver */
+                $driver = $setDrivers[$i]['driver'];
+                $keyArr = $setDrivers[$i]['key_arr'];
+                $driverClass = $setDrivers[$i]['driver_class'];
+
+                $saveData = [];
+                foreach ($keyArr as $key => $keyParams) {
+                    $data = $result[$keyParams] ?? null;
+                    if (!Common::checkEmpty($data)) {
+                        $saveData[$key] = $this->addDataVersion($data);
+                    }
+                }
+
+                if (!empty($saveData)) {
+                    $ttl = intval($setDrivers[$i]['ttl'] ?? 0);
+                    if ($ttl == 0 || $ttl < 0) {
+                        $ttl = CacheHub::DEFAULT_TTL;
+                    }
+                    $driver->multiSet($saveData, $ttl);
+                }
+            }
+        }
+
+        $arr = [];
+        foreach ($keyParamsArr as $key) {
+            if (isset($result[$key])) {
+                $arr[$key] = $this->wrapData($result[$key]);
+            } else {
+                $arr[$key] = null;
+            }
+        }
+        return $arr;
+    }
+
+    // public function multiSet(array $params): bool
+    // {
+    //     if (empty($this->getCacheList())) {
+    //         throw new \Exception('cacheList is empty');
+    //     }
+    //
+    //     foreach ($this->getCacheList() as $v) {
+    //         if (empty($v['driver'])) {
+    //             throw new \Exception('driver is empty');
+    //         }
+    //         $serializerClass = $v['serializer'] ?: OriginalSerializer::class;
+    //         $driver = $this->container->getDriver($v['driver'], $serializerClass, $v['driver_handler'] ?? null);
+    //
+    //         $data = [];
+    //         foreach ($params as $keyParams => $value) {
+    //             $key = $driver->buildKey($this->prefix, $this->getKey(), $keyParams);
+    //             $data[$key] = $value;
+    //         }
+    //         $driver->multiSet($data, $v['ttl'] ?? 0);
+    //     }
+    //     return true;
+    // }
+
+
     protected function parseCacheData($data)
     {
         // 检查数据版本
@@ -296,12 +414,8 @@ trait HandlerTrait
             $ttl = CacheHub::DEFAULT_TTL;
         }
         // 添加版本号
-        $versionData = $this->addDataVersion($data);
-        if ($versionData) {
-            return (bool)$driver->set($key, $versionData, $ttl);
-        } else {
-            return (bool)$driver->set($key, $data, $ttl);
-        }
+        $data = $this->addDataVersion($data);
+        return (bool)$driver->set($key, $data, $ttl);
     }
 
     public function update($keyParams = ''): int

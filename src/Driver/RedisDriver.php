@@ -4,10 +4,11 @@ declare(strict_types=1);
 namespace Haoa\CacheHub\Driver;
 
 use Haoa\CacheHub\Common\Common;
-use Haoa\CacheHub\Exception\Exception;
 
 class RedisDriver extends BaseDriver
 {
+
+    protected bool $canLock = true;
 
     /** @var \Redis */
     protected $handler;
@@ -21,6 +22,17 @@ class RedisDriver extends BaseDriver
         return $this->serializer->decode($value);
     }
 
+    public function multiGet(array $keyArr): array
+    {
+        $ret = $this->handler->mGet($keyArr);
+        $len = count($keyArr);
+        $data = [];
+        for ($i = 0; $i < $len; $i++) {
+            $data[$keyArr[$i]] = $this->serializer->decode($ret[$i] ?? null);
+        }
+        return $data;
+    }
+
     public function set($key, $value, $ttl = null): bool
     {
         $value = $this->serializer->encode($value);
@@ -28,6 +40,30 @@ class RedisDriver extends BaseDriver
             return false;
         }
         return (bool)$this->handler->setex($key, $ttl, $value);
+    }
+
+    public function multiSet(array $params, int $ttl = 0): bool
+    {
+        foreach ($params as &$v) {
+            $v = $this->serializer->encode($v);
+        }
+        $ret = $this->handler->mSet($params);
+        if ($ttl > 0) {
+            $this->multiExpire(array_keys($params), $ttl);
+        }
+        return $ret;
+    }
+
+    private function multiExpire(array $keyArr, int $ttl)
+    {
+        $script = <<<LUA
+for i, key in ipairs(KEYS) do
+    redis.call('EXPIRE', key, ARGV[1])
+end
+LUA;
+        $len = count($keyArr);
+        $keyArr[] = $ttl;
+        return $this->handler->eval($script, $keyArr, $len);
     }
 
     public function delete(string $key): bool

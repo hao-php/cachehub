@@ -85,4 +85,14 @@ abstract class CacheHandler
         $this->prefix = $prefix;
     }
 
+    /**
+     * 批量构建数据
+     * @param array $params
+     * @return array 以key为下标的数组
+     */
+    protected function multiBuild(array $params): array
+    {
+        throw new \Exception("multiBuild is not implemented");
+    }
+
 }

@@ -14,11 +14,18 @@ abstract class BaseDriver
     /** @var SerializerInterface */
     protected $serializer;
 
+    /** @var bool 是否可以加锁等待数据 */
+    protected bool $canLock = false;
+
     abstract public function get($key);
 
     abstract public function set($key, $value, $ttl = null): bool;
 
     abstract public function delete(string $key): bool;
+
+    abstract public function multiGet(array $keyArr): array;
+
+    abstract public function multiSet(array $params, int $ttl): bool;
 
     abstract public function multiDelete(array $key);
 
@@ -55,6 +62,11 @@ abstract class BaseDriver
     public function setSerializer(SerializerInterface $serializer)
     {
         $this->serializer = $serializer;
+    }
+
+    public function getCanLock(): bool
+    {
+        return $this->canLock;
     }
 
     public function __call($name, $arguments)

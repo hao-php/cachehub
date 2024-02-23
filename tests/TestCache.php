@@ -57,7 +57,7 @@ class TestCache extends CacheHandler
     }
 }
 
-class TestLockCache extends CacheHandler
+class TestCache2 extends CacheHandler
 {
 
     public $key = 'test';
@@ -65,6 +65,8 @@ class TestLockCache extends CacheHandler
     public $nullValue = '';
     public $valueFunc;
     public $wrapFunc;
+
+    public $multiBuildFunc;
 
     public $ttl = 60;
 
@@ -84,6 +86,11 @@ class TestLockCache extends CacheHandler
             return $data;
         }
         return call_user_func($this->wrapFunc, $data);
+    }
+
+    public function multiBuild(array $params): array
+    {
+        return call_user_func($this->multiBuildFunc, $params);
     }
 
     protected function getCacheList(): array

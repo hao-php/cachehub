@@ -63,6 +63,15 @@ class ExTest extends CacheHandler
         // return 'ex_data';
     }
 
+    protected function multiBuild(array $params): array
+    {
+        $data = [];
+        foreach ($params as $key) {
+            $data[$key] = [$key . '_data'];
+        }
+        return $data;
+    }
+
     /**
      * 包装数据
      */
@@ -105,6 +114,21 @@ class AppCacheHub
         $cache = $cacheHub->getCache(ExTest::class);
         $cache = $cacheHub->getCache(ExTest::class, true);
 
+        // 批量获取数据
+        // $data = $cache->multiGet(['test_1', 'test_2']);
+        // $from = $cache->getDataFrom();
+        // var_dump($data, $from);
+        //
+        // apcu_delete('ex:ex_test:test_1');
+        //
+        // $data = $cache->multiGet(['test_1', 'test_2']);
+        // $from = $cache->getDataFrom();
+        // var_dump($data, $from);
+        //
+        // $data = $cache->multiGet(['test_1', 'test_2']);
+        // $from = $cache->getDataFrom();
+        // var_dump($data, $from);
+
         // 获取数据
         $data = $cache->get();
         $from = $cache->getDataFrom();
@@ -124,8 +148,7 @@ class AppCacheHub
         // var_dump($ret);
         //
 
-        //
-        // 调用原生驱动的方法
+        // 只有一级缓存时, 调用原生驱动的方法
         // $cache->lPush('test', 1);
     }
 
