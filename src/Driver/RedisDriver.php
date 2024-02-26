@@ -56,14 +56,20 @@ class RedisDriver extends BaseDriver
 
     private function multiExpire(array $keyArr, int $ttl)
     {
-        $script = <<<LUA
-for i, key in ipairs(KEYS) do
-    redis.call('EXPIRE', key, ARGV[1])
-end
-LUA;
-        $len = count($keyArr);
-        $keyArr[] = $ttl;
-        return $this->handler->eval($script, $keyArr, $len);
+//         $script = <<<LUA
+// for i, key in ipairs(KEYS) do
+//     redis.call('EXPIRE', key, ARGV[1])
+// end
+// LUA;
+//         $len = count($keyArr);
+//         $keyArr[] = $ttl;
+//         return $this->handler->eval($script, $keyArr, $len);
+
+        $redis = $this->handler->multi(\Redis::PIPELINE);
+        foreach ($keyArr as $key) {
+            $redis->expire($key, $ttl);
+        }
+        $redis->exec();
     }
 
     public function delete(string $key): bool
