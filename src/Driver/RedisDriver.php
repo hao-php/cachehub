@@ -44,14 +44,19 @@ class RedisDriver extends BaseDriver
 
     public function multiSet(array $params, int $ttl = 0): bool
     {
-        foreach ($params as &$v) {
+        $redis = $this->handler->multi(\Redis::PIPELINE);
+        foreach ($params as $key => &$v) {
             $v = $this->serializer->encode($v);
+            $redis->setex($key, $ttl, $v);
         }
-        $ret = $this->handler->mSet($params);
-        if ($ttl > 0) {
-            $this->multiExpire(array_keys($params), $ttl);
-        }
-        return $ret;
+        $redis->exec();
+        return true;
+
+        // $ret = $this->handler->mSet($params);
+        // if ($ttl > 0) {
+        //     $this->multiExpire(array_keys($params), $ttl);
+        // }
+        // return $ret;
     }
 
     private function multiExpire(array $keyArr, int $ttl)
